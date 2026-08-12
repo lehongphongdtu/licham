@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- Cấu hình PWA cho iOS để hoạt động như App Native -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lịch Âm">
+    
+    <!-- (Tuỳ chọn) Icon ngoài màn hình chính - bạn có thể thay href bằng link ảnh icon của bạn -->
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/007aff/ffffff?text=Lich">
+    
+    <title>Lịch Âm Dương</title>
+    
+    <!-- Thư viện tính lịch âm -->
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
+    
+    <style>
+        /* Biến màu sắc hỗ trợ Light/Dark Mode */
+        :root {
+            --bg-color: #ffffff;
+            --text-main: #000000;
+            --text-muted: #8e8e93;
+            --border-color: #e5e5ea;
+            --red-color: #ff3b30;
+            --blue-color: #007aff;
+            --today-bg: #ff3b30;
+            --today-text: #ffffff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #000000;
+                --text-main: #ffffff;
+                --text-muted: #98989d;
+                --border-color: #38383a;
+            }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding-top: env(safe-area-inset-top, 40px); /* Căn lề cho tai thỏ/Dynamic Island */
+        }
+
+        /* Header (Tháng & Nút chuyển) */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--blue-color);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        /* Lưới lịch */
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .weekdays div:first-child, .weekdays div:last-child {
+            color: var(--red-color);
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background-color: var(--border-color);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .day {
+            background-color: var(--bg-color);
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .day.empty {
+            background-color: transparent;
+        }
+
+        .solar {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .lunar {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .day.weekend .solar {
+            color: var(--red-color);
+        }
+
+        /* Highlight ngày hôm nay */
+        .day.today {
+            background-color: transparent;
+        }
+
+        .day.today .solar {
+            background-color: var(--today-bg);
+            color: var(--today-text);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .day.today.weekend .solar {
+            color: var(--today-text);
+        }
+        
+        .footer-action {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .footer-action button {
+            background: var(--border-color);
+            color: var(--text-main);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <button class="nav-btn" id="prevBtn">‹</button>
+            <h1 id="monthYear"></h1>
+            <button class="nav-btn" id="nextBtn">›</button>
+        </div>
+
+        <div class="weekdays">
+            <div>CN</div>
+            <div>T2</div>
+            <div>T3</div>
+            <div>T4</div>
+            <div>T5</div>
+            <div>T6</div>
+            <div>T7</div>
+        </div>
+
+        <div class="calendar" id="calendar"></div>
+        
+        <div class="footer-action">
+            <button id="todayBtn">Hôm nay</button>
+        </div>
+    </div>
+
+    <script>
+        const monthYearEl = document.getElementById('monthYear');
+        const calendarEl = document.getElementById('calendar');
+        
+        let currentDate = new Date();
+
+        function renderCalendar(date) {
+            calendarEl.innerHTML = '';
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            
+            monthYearEl.textContent = `Tháng ${month + 1}, ${year}`;
+
+            // Ngày đầu tiên của tháng và tổng số ngày
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Ô trống đầu tháng
+            for (let i = 0; i < firstDay; i++) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'day empty';
+                calendarEl.appendChild(emptyDiv);
+            }
+
+            const today = new Date();
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'day';
+                const cellDate = new Date(year, month, i);
+                
+                // Đánh dấu cuối tuần
+                if (cellDate.getDay() === 0 || cellDate.getDay() === 6) {
+                    dayDiv.classList.add('weekend');
+                }
+                
+                // Đánh dấu hôm nay
+                if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                    dayDiv.classList.add('today');
+                }
+
+                // Tính lịch âm
+                const lunar = Lunar.fromDate(cellDate);
+                let lunarText = lunar.getDay();
+                // Hiển thị thêm tháng âm nếu là mùng 1 hoặc ngày đầu tiên của lịch dương
+                if (lunarText === 1 || i === 1) {
+                    lunarText = `${lunar.getDay()}/${lunar.getMonth()}`;
+                }
+
+                dayDiv.innerHTML = `
+                    <div class="solar">${i}</div>
+                    <div class="lunar">${lunarText}</div>
+                `;
+                calendarEl.appendChild(dayDiv);
+            }
+        }
+
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar(currentDate);
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar(currentDate);
+        });
+        
+        document.getElementById('todayBtn').addEventListener('click', () => {
+            currentDate = new Date();
+            renderCalendar(currentDate);
+        });
+
+        // Khởi tạo
+        renderCalendar(currentDate);
+    </script>
+</body>
+</html>
