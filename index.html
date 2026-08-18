@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lịch Âm">
     
-    <!-- (Tuỳ chọn) Icon ngoài màn hình chính - bạn có thể thay href bằng link ảnh icon của bạn -->
     <link rel="apple-touch-icon" href="https://via.placeholder.com/192/007aff/ffffff?text=Lich">
     
     <title>Lịch Âm Dương</title>
@@ -17,7 +16,6 @@
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     
     <style>
-        /* Biến màu sắc hỗ trợ Light/Dark Mode */
         :root {
             --bg-color: #ffffff;
             --text-main: #000000;
@@ -27,6 +25,7 @@
             --blue-color: #007aff;
             --today-bg: #ff3b30;
             --today-text: #ffffff;
+            --quote-bg: rgba(142, 142, 147, 0.08);
         }
 
         @media (prefers-color-scheme: dark) {
@@ -35,6 +34,7 @@
                 --text-main: #ffffff;
                 --text-muted: #98989d;
                 --border-color: #38383a;
+                --quote-bg: rgba(152, 152, 157, 0.12);
             }
         }
 
@@ -51,7 +51,8 @@
         .container {
             max-width: 500px;
             margin: 0 auto;
-            padding-top: env(safe-area-inset-top, 40px); /* Căn lề cho tai thỏ/Dynamic Island */
+            padding-top: env(safe-area-inset-top, 40px);
+            padding-bottom: 30px;
         }
 
         /* Header (Tháng & Nút chuyển) */
@@ -152,18 +153,47 @@
         
         .footer-action {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 25px;
         }
         
         .footer-action button {
             background: var(--border-color);
             color: var(--text-main);
             border: none;
-            padding: 10px 20px;
+            padding: 10px 24px;
             border-radius: 20px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
+        }
+
+        /* Khung danh ngôn ở cuối trang */
+        .quote-box {
+            margin: 25px 20px 10px 20px;
+            padding: 16px 20px;
+            background-color: var(--quote-bg);
+            border-radius: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .quote-box:active {
+            opacity: 0.6;
+        }
+
+        .quote-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-main);
+            font-style: italic;
+        }
+
+        .quote-author {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -191,7 +221,12 @@
         <div class="footer-action">
             <button id="todayBtn">Hôm nay</button>
         </div>
-        <center>Hạnh Phong 2026</center>
+
+        <!-- Khung danh ngôn -->
+        <div class="quote-box" id="quoteBox">
+            <div class="quote-text" id="quoteText"></div>
+            <div class="quote-author" id="quoteAuthor"></div>
+        </div>
     </div>
 
     <script>
@@ -207,11 +242,9 @@
             
             monthYearEl.textContent = `Tháng ${month + 1}, ${year}`;
 
-            // Ngày đầu tiên của tháng và tổng số ngày
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            // Ô trống đầu tháng
             for (let i = 0; i < firstDay; i++) {
                 const emptyDiv = document.createElement('div');
                 emptyDiv.className = 'day empty';
@@ -225,20 +258,16 @@
                 dayDiv.className = 'day';
                 const cellDate = new Date(year, month, i);
                 
-                // Đánh dấu cuối tuần
                 if (cellDate.getDay() === 0 || cellDate.getDay() === 6) {
                     dayDiv.classList.add('weekend');
                 }
                 
-                // Đánh dấu hôm nay
                 if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
                     dayDiv.classList.add('today');
                 }
 
-                // Tính lịch âm
                 const lunar = Lunar.fromDate(cellDate);
                 let lunarText = lunar.getDay();
-                // Hiển thị thêm tháng âm nếu là mùng 1 hoặc ngày đầu tiên của lịch dương
                 if (lunarText === 1 || i === 1) {
                     lunarText = `${lunar.getDay()}/${lunar.getMonth()}`;
                 }
@@ -266,8 +295,38 @@
             renderCalendar(currentDate);
         });
 
+        // Danh sách danh ngôn tuyển chọn
+        const quotes = [
+            { text: "Thời gian là thứ miễn phí, nhưng nó vô giá. Bạn không thể sở hữu nó, nhưng bạn có thể sử dụng nó.", author: "Harvey MacKay" },
+            { text: "Đừng đếm ngày tháng, hãy làm cho ngày tháng đếm được.", author: "Muhammad Ali" },
+            { text: "Hôm nay là một món quà, đó là lý do vì sao nó được gọi là Present.", author: "Khuyết danh" },
+            { text: "Mỗi ngày mới là một cơ hội mới để bạn trở thành phiên bản tốt hơn của chính mình.", author: "Khuyết danh" },
+            { text: "Tương lai phụ thuộc vào những gì bạn làm ngày hôm nay.", author: "Mahatma Gandhi" },
+            { text: "Hãy sống như thể ngày mai bạn sẽ chết. Hãy học như thể bạn sẽ sống mãi mãi.", author: "Mahatma Gandhi" },
+            { text: "Hành trình vạn dặm luôn bắt đầu bằng một bước chân.", author: "Lão Tử" },
+            { text: "Cuộc sống không phải là chờ đợi bão giông qua đi, mà là học cách nhảy múa dưới cơn mưa.", author: "Vivian Greene" },
+            { text: "Thành công là một hành trình, không phải là đích đến.", author: "Arthur Ashe" },
+            { text: "Hạnh phúc không phải là điểm đến, mà là một hành trình.", author: "Roy M. Goodman" },
+            { text: "Mặt trời luôn mọc lại sau đêm dài.", author: "Tục ngữ" },
+            { text: "Chỉ cần bạn không dừng lại, việc bạn đi chậm thế nào không quan trọng.", author: "Khổng Tử" },
+            { text: "Tất cả chúng ta đều có hai cuộc đời. Cuộc đời thứ hai bắt đầu khi ta nhận ra ta chỉ có một cuộc đời.", author: "Khổng Tử" },
+            { text: "Gieo hành vi, gặt thói quen. Gieo thói quen, gặt tính cách. Gieo tính cách, gặt số phận.", author: "William James" },
+            { text: "Kỷ luật là cầu nối giữa mục tiêu và thành tựu.", author: "Jim Rohn" }
+        ];
+
+        function showRandomQuote() {
+            const randomIndex = Math.floor(Math.random() * quotes.length);
+            const quote = quotes[randomIndex];
+            document.getElementById('quoteText').textContent = `“${quote.text}”`;
+            document.getElementById('quoteAuthor').textContent = quote.author ? `— ${quote.author}` : '';
+        }
+
+        // Chạm vào khung để đổi câu khác
+        document.getElementById('quoteBox').addEventListener('click', showRandomQuote);
+
         // Khởi tạo
         renderCalendar(currentDate);
+        showRandomQuote();
     </script>
 </body>
 </html>
